@@ -1,0 +1,30 @@
+version: '2.4'
+services:
+
+  internetloginpyws:
+    #build:
+    #  context: ./
+    #  dockerfile: Dockerfile
+    image: ghcr.io/tob1as/internetloginwithpythonwebservice:latest
+    container_name: internetloginpyws
+    restart: unless-stopped
+    ports:
+      - 8000:8000/tcp
+    #volumes:
+    #  #- ./login_wohnheim_uni_mainz_de-webservice.py:/service/login_wohnheim_uni_mainz_de-webservice.py:rw
+    #  - ./ssl/ssl.crt:/service/ssl.crt:ro
+    #  - ./ssl/ssl.crt:/service/ssl.key:ro
+    environment:
+      TZ: Europe/Berlin
+      #HTTPD_PORT: 8000
+      HTTPD_BASEPATH: /internet
+      HTTPD_SSL_ENABLE: 0
+    #entrypoint: [ "/bin/sh", "-c", "--" ]
+    #command: [ "while true; do sleep 60; done;" ]
+    healthcheck:
+      test:  wget --quiet --tries=1 --spider http://localhost:8000/healthcheck || exit 1
+      #test:  wget --quiet --tries=1 --spider --no-check-certificate  https://localhost:8000/healthcheck || exit 1
+      #start_period: 10s
+      interval: 120s
+      timeout: 3s
+      retries: 3
