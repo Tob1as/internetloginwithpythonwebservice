@@ -105,7 +105,7 @@ def get_healthcheck(self):
 # GET: status
 def get_status(self):
     current_time = currenttime()
-    print("%s - DEBUG: Call GET-Request: %s" % (current_time, self.path))
+    #print("%s - DEBUG: Call GET-Request: %s" % (current_time, self.path))
     
     # check online status
     response = ping(STATUS_HOST)
