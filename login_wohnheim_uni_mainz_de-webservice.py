@@ -212,7 +212,7 @@ def post_login(self):
         logininfo = "Login Status unknown! :-S"
     #print("%s - DEBUG: Login-Text (var: logininfo): %s" % (current_time, logininfo))
 
-    print("%s - DEBUG: %s -> User: %s" % (current_time, logininfo, username))
+    print("%s - INFO: %s -> User: %s" % (current_time, logininfo, username))
 
     # httpd output
     set_headers(self)
