@@ -6,7 +6,6 @@
 ##                                                   |___/                                     |___/
 
 ## InternetLoginWithPythonWebService, short: InternetLoginPyWS
-## https://gitlab.rlp.net/stwmz-nags/internetloginwithpythonwebservice
 ## https://github.com/Tob1as/internetloginwithpythonwebservice
 
 ---
@@ -157,7 +156,7 @@ kind: Secret
 metadata:
   name: ingress-tls-secret
   namespace: adminservices
+type: kubernetes.io/tls
 data:
   tls.crt: <ssl.crt>
   tls.key: <ssl.key>
-type: kubernetes.io/tls
