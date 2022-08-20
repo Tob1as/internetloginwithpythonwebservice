@@ -8,6 +8,8 @@ Internet-Login/Logout for dormitory network of the Johannes-Gutenberg-University
 """
 
 import os
+import sys
+import logging
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from http import HTTPStatus
@@ -21,6 +23,9 @@ import subprocess
 import fnmatch
 import json
 
+# Variables
+LOGLEVEL = str(os.environ.get('LOGLEVEL', 'INFO').upper())
+
 HTTPD_HOST = str(os.environ.get('HTTP_HOST', '0.0.0.0'))
 HTTPD_PORT = int(os.environ.get('HTTP_PORT', 8000))
 HTTPD_BASEPATH = str(os.environ.get('HTTPD_BASEPATH', ''))
@@ -32,7 +37,12 @@ WEBSITE_TITLE="Wohnheime Mainz - Internet Login/Logout"
 WEBSITE_FAVICON_BASE64="R0lGODlhEAAQAPcAAMfQAP///sPNAMTOAB9AjMLMAMnRAMTNAM7VAB4+i8vTAPv758XOAP398uDkWP///f/++rbC2P799dvgQPj42Pn52fn53Pr63dHYEs/WBdPZE+7woa662vj52ujs9vPzt87VAvn52hk6if799tXbHfn5zO3votXaJOToeubpgf398NjdMPz76N/jTuPnbwAbefb30KGr0ebqiPDxqfr64AAXe/H08tfeNfX2nP3+/hU2i87T6gASdgAOc+vumOzthwAbeomXw/j5/AAbe+nsh+zumd7j9O/xrNPZF+7voQ4wg///+wASegAefeztmPT1nertmuvtlO/xq/7+9+Lmde3vnsnP5MTM5NPZFeLla8bPAHGErwUpfgAfe9neQRc4h8/WD+rrhejrg+vsjvj42tbcKM7VBvb2yvT1w9neNgAcev398w8vgiBAjNzhSfHyrx09i8nSAPf41/r61bbA2Pb2yd/kU8vTAebqfCdElx09ipWfyubpfO/vnqGtxePncNbbH/X29v///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH/C1hNUCBEYXRhWE1QPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNS4zLWMwMTEgNjYuMTQ1NjYxLCAyMDEyLzAyLzA2LTE0OjU2OjI3ICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIiB4bWxuczpzdFJlZj0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jlc291cmNlUmVmIyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ1M2IChNYWNpbnRvc2gpIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjdCNTBFMjc5NjgyMzExRTQ4MkQ2QzI4MTc5QjlCMTE5IiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOjdCNTBFMjdBNjgyMzExRTQ4MkQ2QzI4MTc5QjlCMTE5Ij4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6N0I1MEUyNzc2ODIzMTFFNDgyRDZDMjgxNzlCOUIxMTkiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6N0I1MEUyNzg2ODIzMTFFNDgyRDZDMjgxNzlCOUIxMTkiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz4B//79/Pv6+fj39vX08/Lx8O/u7ezr6uno5+bl5OPi4eDf3t3c29rZ2NfW1dTT0tHQz87NzMvKycjHxsXEw8LBwL++vby7urm4t7a1tLOysbCvrq2sq6qpqKempaSjoqGgn56dnJuamZiXlpWUk5KRkI+OjYyLiomIh4aFhIOCgYB/fn18e3p5eHd2dXRzcnFwb25tbGtqaWhnZmVkY2JhYF9eXVxbWllYV1ZVVFNSUVBPTk1MS0pJSEdGRURDQkFAPz49PDs6OTg3NjU0MzIxMC8uLSwrKikoJyYlJCMiISAfHh0cGxoZGBcWFRQTEhEQDw4NDAsKCQgHBgUEAwIBAAAh+QQAAAAAACwAAAAAEAAQAAAI1AAFCRxIsKCgM3c0GAAAgMXANVmg+DCxIA0CFRSo/AgwMMAMMHEAKJgAoIJBglNIKCByYMPAQBz20CFoZkWRAlEE2mADhEuPCAIvDBCDR0AfQTnyNGmTQIkOIYJKCHhjh8ETQVbUEICTQEQXD4LmDKjigAEOQTt4fCGgh0kQgQ0MtPgDwImgAH6GvKixZeADBEjGDJAy0EiMKwUBZfhQoMNJgmFA1BFA44HAJRwFoUlxJIQLNw1unMBSxgsfCAIlyMCg5YADgQvkwCAzwqAFFEkePw4IADs=" # STWMZ
 #WEBSITE_FAVICON_BASE64="AAABAAEAEBAAAAAAAABoBQAAFgAAACgAAAAQAAAAIAAAAAEACAAAAAAAAAEAAAAAAAAAAAAAAAEAAAAAAAAsA70AKyO+ACMGtQAjBbgAKAK4ACUFuAAqArgAKwK4ACoBuwAtMLsALAW4AC0FuAA/Q8cAIwO2AC4DvgAuB7sAKwO2ACgFuQAqBbkAKAS8ACwFuQAmB7wAKgS8ACYDtwAoA7cAJgK6ACoDtwAoAroAKxG5ACMbtgAmBboAKAW6ACYCsgAmBL0AJAG1ACgBtQAnIbYAMAW6ACQDuAAcDbUAJgO4AC0HvQAoB7UAJga4ACwDuAAoBrgALgO4ACAFswArArsALAK7AC4CuwAsIrwAKwG+ACsFuwAtBbsAJAe2ACYHtgApA7kAKwO5ACwDuQAtBrkAJwG3ACkBtwAqGb4AKwS3AB4GsgArBroALQa6ACkFvQAwI7sAKwW9ADMtwABDS8YAJwS4ACMHuAApBLgALQG4AC0huQArBLgAJwO7ACkDuwAlGLoAJQK2ACIFtgAnArYAMQa7AP///wAnBLkAKQe5AC0EuQAsA7wALAa8ACcGtAAuBrwAKQa0ACUFtwApBbcAKRO5ACoBugAqBLoALAS6AC0EugAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMGMGUDk5BAQxMAZOOQQ5EghDWldjPTo6ThAbV2M5BFQGQklkNgY6NhNJGUtkZGQEUBROT05OThQrVlMwZGRjORoBRRQ5FhQRUFYqQGU6JSwfVlYvAFAXQQ5WPEseS04ROiFWTWRWVlYcVmBWVlZWB1cWVlFWSmFWR1YFVg0VVmAGZFYnVjkwPyRWXlZTUlY0OU5WHVYMHwkzVilWOCZWXA9jVkgmVlZWRFYCVi5ZVlswWFlCC0YYLUJWAyVOOlALIxMRE0xPBgpQVjc7ZFo6H1ooVV9kE1AiZVYOIGNaZD45ZWJlZGNkFElELGNjYzo1WAY5MmRkZWVONmQKTk5kXQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" # Uni-Mainz
 
-print(f"LOAD ENV: HTTPD_HOST={HTTPD_HOST} ; HTTPD_PORT={HTTPD_PORT} ; HTTPD_BASEPATH={HTTPD_BASEPATH} ; HTTPD_SSL_ENABLE={HTTPD_SSL_ENABLE} ; STATUS_HOST={STATUS_HOST}")
+# Logging
+logging.root.handlers = []
+logging.basicConfig(format='%(asctime)s %(name)-12s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S', encoding='utf-8', stream=sys.stdout, level=LOGLEVEL)
+logger = logging.getLogger(__name__)
+
+logger.info(f"LOAD ENV: HTTPD_HOST={HTTPD_HOST} ; HTTPD_PORT={HTTPD_PORT} ; HTTPD_BASEPATH={HTTPD_BASEPATH} ; HTTPD_SSL_ENABLE={HTTPD_SSL_ENABLE} ; STATUS_HOST={STATUS_HOST}")
 
 # current time
 def currenttime():
@@ -104,8 +114,9 @@ def get_healthcheck(self):
 
 # GET: status
 def get_status(self):
+    logger.debug("Call GET-Request: %s" % self.path)
+
     current_time = currenttime()
-    #print("%s - DEBUG: Call GET-Request: %s" % (current_time, self.path))
     
     # check online status
     response = ping(STATUS_HOST)
@@ -115,7 +126,7 @@ def get_status(self):
     else:
         status="Offline! :-("
         statusjson="Offline"
-    print("%s - INFO: Status: %s" % (current_time, status))
+    logger.info("Status: %s" % status)
 
     try:
         param = parse_qs(urlparse(self.path).query)['format'][0]
@@ -150,8 +161,9 @@ def get_status(self):
 
 # GET: login
 def get_login(self):
-    current_time = currenttime()
-    #print("%s - DEBUG: Call GET-Request: %s" % (current_time, self.path))
+    logger.debug("Call GET-Request: %s" % self.path)
+
+    #current_time = currenttime()
 
     # httpd output
     set_headers(self)
@@ -168,8 +180,9 @@ def get_login(self):
 
 # GET: logout
 def get_logout(self):
-    current_time = currenttime()
-    #print("%s - DEBUG: Call GET-Request: %s" % (current_time, self.path))
+    logger.debug("Call GET-Request: %s" % self.path)
+
+    #current_time = currenttime()
 
     # httpd output
     set_headers(self)
@@ -183,8 +196,9 @@ def get_logout(self):
 
 # POST: login
 def post_login(self):
-    current_time = currenttime()
-    #print("%s - DEBUG: Call GET-Request: %s" % (current_time, self.path))
+    logger.debug("Call GET-Request: %s" % self.path)
+
+    #current_time = currenttime()
 
     # get vars from POST
     postvars = parse_POST(self)
@@ -198,21 +212,21 @@ def post_login(self):
         'pass': password
     }
     response = requests.post('https://login.wohnheim.uni-mainz.de/cgi-bin/login-cgi', data=payload)
-    #print("%s - DEBUG: Login-Statuscode: %s ; Login-Response: %s" % (current_time, response.status_code, response.content))
+    #logger.debug("Login-Statuscode: %s ; Login-Response: %s" % (response.status_code, response.content))
 
     soup = BeautifulSoup(response.content, 'html.parser')
-    #print("%s - DEBUG: Login-Response (Pretty): %s" % (current_time, soup.prettify()))
+    logger.debug("Login-Response (Pretty): %s" % soup.prettify())
     soupreturn = soup.find(id='content').get_text().replace(' ', '').strip().split(".",1)[0]
-    #print("%s - DEBUG: Login-Response (var: soupreturn): %s" % (current_time, soupreturn))
+    logger.debug("Login-Response (var: soupreturn): %s" % soupreturn)
     if soupreturn == 'LogInsuccessful':
         logininfo="Login success! :-)"
     elif soupreturn == 'LogInunsuccessful':
         logininfo="Login failed! :-("
     else: 
         logininfo = "Login Status unknown! :-S"
-    #print("%s - DEBUG: Login-Text (var: logininfo): %s" % (current_time, logininfo))
+    #logger.debug("Login-Text (var: logininfo): %s" % logininfo)
 
-    print("%s - INFO: %s -> User: %s" % (current_time, logininfo, username))
+    logger.info("%s -> User: %s" % (logininfo, username))
 
     # httpd output
     set_headers(self)
@@ -222,8 +236,9 @@ def post_login(self):
 
 # POST: logout
 def post_logout(self):
+    logger.debug("Call GET-Request: %s" % self.path)
+
     current_time = currenttime()
-    #print("%s - DEBUG: Call GET-Request: %s" % (current_time, self.path))
 
     # get vars from POST
     postvars = parse_POST(self)
@@ -234,17 +249,19 @@ def post_logout(self):
         'command': 'logout'
     }
     response = requests.post('https://login.wohnheim.uni-mainz.de/cgi-bin/logout.cgi', data=payload)
-    #print("%s - DEBUG: Logout-Statuscode: %s ; Logout-Response: %s" % (current_time, response.status_code, response.content))
+    #logger.debug("Logout-Statuscode: %s ; Logout-Response: %s" % (response.status_code, response.content))
 
     soup = BeautifulSoup(response.content, 'html.parser')
-    #print("%s - DEBUG: Logout-Response (Pretty): %s" % (current_time, soup.prettify()))
+    logger.debug("Logout-Response (Pretty): %s" % soup.prettify())
     soupreturn = soup.find('td').get_text().replace(' ', '').strip()
-    #print("%s - DEBUG: Logout-Response (var: soupreturn): %s" % (current_time, soupreturn))
+    logger.debug("Logout-Response (var: soupreturn): %s" % soupreturn)
     if soupreturn == 'YourIPhasbeensuccessfullydisabled.':
         logoutinfo="Logout success! :-O"
     else:
         logoutinfo = "Logout Status unknown! :-S"
-    #print("%s - DEBUG: Logout-Text (var: logoutinfo): %s" % (current_time, logoutinfo))
+    #logger.debug("Logout-Text (var: logoutinfo): %s" % logoutinfo)
+    
+    logger.info("%s" % logoutinfo)
 
     # httpd output
     set_headers(self)
@@ -290,10 +307,10 @@ if __name__ == "__main__":
     else:
         HTTPD_SCHEME="http"
 
-    print("Server started %s://%s:%s at %s" % (HTTPD_SCHEME, HTTPD_HOST, HTTPD_PORT, currenttime()))
-    print("Status-URL:  %s://localhost:%s%s/status"  % (HTTPD_SCHEME, HTTPD_PORT, HTTPD_BASEPATH))
-    print("Login-URL:  %s://localhost:%s%s/login"  % (HTTPD_SCHEME, HTTPD_PORT, HTTPD_BASEPATH))
-    print("Logout-URL: %s://localhost:%s%s/logout" % (HTTPD_SCHEME, HTTPD_PORT, HTTPD_BASEPATH))
+    logger.info("Server started %s://%s:%s at %s" % (HTTPD_SCHEME, HTTPD_HOST, HTTPD_PORT, currenttime()))
+    logger.info("Status-URL: %s://localhost:%s%s/status"  % (HTTPD_SCHEME, HTTPD_PORT, HTTPD_BASEPATH))
+    logger.info("Login-URL: %s://localhost:%s%s/login"  % (HTTPD_SCHEME, HTTPD_PORT, HTTPD_BASEPATH))
+    logger.info("Logout-URL: %s://localhost:%s%s/logout" % (HTTPD_SCHEME, HTTPD_PORT, HTTPD_BASEPATH))
 
     try:
         httpd.serve_forever()
@@ -301,4 +318,4 @@ if __name__ == "__main__":
         pass
 
     httpd.server_close()
-    print("Server stopped.")
+    logger.info("Server stopped.")

@@ -19,6 +19,7 @@ services:
       #HTTPD_PORT: 8000
       HTTPD_BASEPATH: /internet
       HTTPD_SSL_ENABLE: 0
+      LOGLEVEL: INFO
     #entrypoint: [ "/bin/sh", "-c", "--" ]
     #command: [ "while true; do sleep 60; done;" ]
     healthcheck:

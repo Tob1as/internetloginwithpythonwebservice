@@ -1,5 +1,8 @@
 FROM python:3.10-alpine
 
+ARG VCS_REF
+ARG BUILD_DATE
+
 LABEL org.opencontainers.image.authors="Tobias Hargesheimer <docker@ison.ws>" \
     #org.opencontainers.image.version="${VCS_REF}" \
     org.opencontainers.image.created="${BUILD_DATE}" \
